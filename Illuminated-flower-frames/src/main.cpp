@@ -8,7 +8,7 @@
 const char APP_NAME[] = "Illuminated-flower-frames";
 const uint16_t APP_VERSION_MAJOR = 0;
 const uint16_t APP_VERSION_MINOR = 0;
-const uint16_t APP_VERSION_PATCH = 1;
+const uint16_t APP_VERSION_PATCH = 2;
 
 #define FASTLED_ALLOW_INTERRUPTS 0
 #include <Arduino.h>
@@ -31,7 +31,7 @@ CRGB leds[NUM_LEDS];
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 // Settings
-const uint16_t SETTING_TIME_FOR_EACH_PATTERN = 30;
+const uint16_t SETTING_TIME_FOR_EACH_PATTERN = 10;
 
 // Global
 uint8_t gCurrentPatternNumber = 0; // Index number of which pattern is current
@@ -41,6 +41,9 @@ uint8_t gHue = 0;                  // rotating "base color" used by many of the 
 uint8_t PATTERNS_FLOWER_COUNT = 7 ; 
 uint8_t PATTERNS_FLOWER_PETTLE_COUNT = 13 ; 
 uint8_t PATTERNS_FLOWER[] = {
+
+// /- Center 
+// | 
 // 0     1    2    3    4    5    6    7    8    9   10   11   12 
    5,    4,   6,   7,   8,   9,  10,  11,  12,  13,  14,  15,  16,  // 0
    22,  21,  23,  24,  25,  26,  27,  28,  29,  30,  31,  32,  33,  // 1
@@ -138,70 +141,31 @@ void TestPattern()
   
 }
 
-void rotatingFlowers() {
-
-  fadeToBlackBy(leds, NUM_LEDS, 3);
-
-  static unsigned long nextUpdate = 0 ;
-  static uint16_t segmentOffset = 0 ; 
-  // PatternRotateThoughSubSections( nextUpdate, segmentOffset, PATTERNS_FLOWER, ARRAY_SIZE(PATTERNS_FLOWER), PATTERNS_FLOWER_PETTLE_COUNT, 300, 1, gHue); 
-  PatternRotateThoughSubSections( nextUpdate, segmentOffset, PATTERNS_FLOWER, ARRAY_SIZE(PATTERNS_FLOWER), PATTERNS_FLOWER_PETTLE_COUNT, 30, 1, gHue); 
-}
-
-void spirialOut() {
-
-  // Only update the segments on a timer.
-  static unsigned long nextUpdate = 0 ;
-  static uint8_t hue = 0 ;
-  if (nextUpdate < millis())
-  {
-    nextUpdate = millis() + 10;
-    hue += 1; 
-  }
-
-
-  // Center flower 
-  PatternSetColor(PATTERNS_FLOWER + (PATTERNS_FLOWER_PETTLE_COUNT*6), PATTERNS_FLOWER_PETTLE_COUNT, hue + ((255/3)*1));
-
-  // Outside flowers 
-  for( uint8_t offset = 0 ; offset < 6 ; offset++ ) {
-    PatternSetColor(PATTERNS_FLOWER + (PATTERNS_FLOWER_PETTLE_COUNT*offset), PATTERNS_FLOWER_PETTLE_COUNT, hue + ((255/3)*2));
-  }
-
-  // Background
-  PatternSetColor(PATTERNS_BACKGROUND, ARRAY_SIZE(PATTERNS_BACKGROUND), hue + ((255/3)*3));
-
-  // Center dot
-  leds[99] += CHSV(hue + ((255/3)*0), 255, 192);
-
-}
-
 
 
 
 
 // Default patterns
 // ----------------------------------
-
-void rainbow()
-{
-  // FastLED's built-in rainbow generator
-  fill_rainbow(leds, NUM_LEDS, gHue, 7);
-}
-/*
-void rainbowWithGlitter()
-{
-  // built-in FastLED rainbow, plus some random sparkly glitter
-  rainbow();
-  addGlitter(80);
-}
-
+// rainbow, rainbowWithGlitter, confetti, sinelon, bpm, juggle,
 void addGlitter(fract8 chanceOfGlitter)
 {
   if (random8() < chanceOfGlitter)
   {
     leds[random16(NUM_LEDS)] += CRGB::White;
   }
+}
+void rainbow()
+{
+  // FastLED's built-in rainbow generator
+  fill_rainbow(leds, NUM_LEDS, gHue, 7);
+}
+
+void rainbowWithGlitter()
+{
+  // built-in FastLED rainbow, plus some random sparkly glitter
+  rainbow();
+  addGlitter(80);
 }
 
 void confetti()
@@ -211,7 +175,6 @@ void confetti()
   int pos = random16(NUM_LEDS);
   leds[pos] += CHSV(gHue + random8(64), 200, 255);
 }
-
 void sinelon()
 {
   // a colored dot sweeping back and forth, with fading trails
@@ -243,55 +206,120 @@ void juggle()
     dothue += 32;
   }
 }
-*/
+
+
 
 // Custom patterns.
 // ----------------------------------------------------------------------------
-/*
-void StarRainbow() {
-  fadeToBlackBy(leds, NUM_LEDS, 5);
-  PatternSetColor( PATTERN_STAR, ARRAY_SIZE(PATTERN_STAR), gHue ) ;
-}
 
-void Gems() {
-  fadeToBlackBy(leds, NUM_LEDS, 1);
+
+
+void rotatingFlowers() {
+
+  fadeToBlackBy(leds, NUM_LEDS, 3);
+
+  long speed = 80;
+  int8_t direction = 1; 
 
   static unsigned long nextUpdate = 0 ;
   static uint16_t segmentOffset = 0 ; 
-  // -6 so we don't do the center gem. 
-  PatternRotateThoughSubSections( nextUpdate, segmentOffset, PATTERN_GEMS, ARRAY_SIZE(PATTERN_GEMS) - 6, 6, 300, -1, gHue); 
+  PatternRotateThoughSubSections( nextUpdate, segmentOffset, PATTERNS_FLOWER, ARRAY_SIZE(PATTERNS_FLOWER)-PATTERNS_FLOWER_PETTLE_COUNT, PATTERNS_FLOWER_PETTLE_COUNT, speed, direction, gHue); 
+  
+  static unsigned long nextUpdateCenter = 0 ;
+  static uint16_t segmentOffsetCenter = 0 ; 
+  PatternRotateThoughSubSections( nextUpdateCenter, segmentOffsetCenter, PATTERNS_FLOWER + (PATTERNS_FLOWER_PETTLE_COUNT * 6), PATTERNS_FLOWER_PETTLE_COUNT, 1, speed / 2.5, direction * -1, gHue +15 ); 
 }
 
-void SpiralInwards() {  
-  fadeToBlackBy(leds, NUM_LEDS, 1);
+void rotatingPettles(long speed, int8_t direction) {
+
+  fadeToBlackBy(leds, NUM_LEDS, speed/7);
+
+  static unsigned long nextUpdate[7] = {0,0,0,0,0,0,0}; 
+  static uint16_t segmentOffset[7] = {0,0,0,0,0,0,0}; 
+  for( uint8_t flowerOffset = 0 ; flowerOffset < PATTERNS_FLOWER_COUNT ; flowerOffset++ ) {  
+    PatternRotateThoughSubSections( nextUpdate[flowerOffset], segmentOffset[flowerOffset], PATTERNS_FLOWER + (PATTERNS_FLOWER_PETTLE_COUNT * flowerOffset), PATTERNS_FLOWER_PETTLE_COUNT, 1, speed, direction, gHue + ((255/PATTERNS_FLOWER_COUNT) * flowerOffset)); 
+  }  
+}
+
+void rotatingPettlesForwards() {
+  rotatingPettles(30, 1) ;
+}
+void rotatingPettlesBackwards() {
+  rotatingPettles(30, -1) ;
+}
+
+
+
+void spirialOut() {
+
+  // Only update the segments on a timer.
   static unsigned long nextUpdate = 0 ;
-  static uint16_t segmentOffset = 0 ; 
-  PatternRotateThoughSubSections( nextUpdate, segmentOffset, PATTERN_SPIRAL, ARRAY_SIZE(PATTERN_SPIRAL) , 1, 20, 1, gHue);   
+  static uint8_t hue = 0 ;
+  if (nextUpdate < millis())
+  {
+    nextUpdate = millis() + 10;
+    hue += 1; 
+  }
+
+
+  // Center flower 
+  PatternSetColor(PATTERNS_FLOWER + (PATTERNS_FLOWER_PETTLE_COUNT*6), PATTERNS_FLOWER_PETTLE_COUNT, hue + ((255/3)*1));
+
+  // Outside flowers 
+  for( uint8_t offset = 0 ; offset < 6 ; offset++ ) {
+    PatternSetColor(PATTERNS_FLOWER + (PATTERNS_FLOWER_PETTLE_COUNT*offset), PATTERNS_FLOWER_PETTLE_COUNT, hue + ((255/3)*2));
+  }
+
+  // Background
+  PatternSetColor(PATTERNS_BACKGROUND, ARRAY_SIZE(PATTERNS_BACKGROUND), hue + ((255/3)*3));
+
+  // Center dot
+  leds[99] += CHSV(hue + ((255/3)*0), 255, 192);
+
 }
 
-void Rings() {
-  fadeToBlackBy(leds, NUM_LEDS, 5);
-
-  static unsigned long insideNextUpdate = 0 ;
-  static uint16_t insideSegmentOffset = 0 ; 
-  static unsigned long outsideNextUpdate = 0 ;
-  static uint16_t outsideSegmentOffset = 0 ; 
-
-  PatternRotateThoughSubSections( insideNextUpdate, insideSegmentOffset, PATTERN_RINGS_INSIDE, ARRAY_SIZE(PATTERN_RINGS_INSIDE), 1, 100, 1, gHue);   
-  PatternRotateThoughSubSections( outsideNextUpdate, outsideSegmentOffset, PATTERN_RINGS_OUTSIDE, ARRAY_SIZE(PATTERN_RINGS_OUTSIDE), 1, 20, -1, gHue + 127 );   
+void DifferentColorFlowers() {
+  fill_solid(leds, NUM_LEDS, CRGB(0, 0, 0));
+  for( uint8_t flowerOffset = 0 ; flowerOffset < PATTERNS_FLOWER_COUNT ; flowerOffset++ ) {
+    // Set the pettles 
+    PatternSetColor(PATTERNS_FLOWER + (PATTERNS_FLOWER_PETTLE_COUNT*flowerOffset), PATTERNS_FLOWER_PETTLE_COUNT, gHue + ((255/PATTERNS_FLOWER_COUNT)*flowerOffset));
+    // Set the center 
+    uint8_t hue = gHue + (255/(PATTERNS_FLOWER_COUNT+1)); 
+    leds[ PATTERNS_FLOWER[ (flowerOffset * PATTERNS_FLOWER_PETTLE_COUNT) + 0 ] ] = CHSV(hue, 200, 255); 
+  }
 }
 
-void MediumTriangles () {
-  PatternSegmentRainbow(PATTERN_MEDIUM_TRIANGLES, ARRAY_SIZE(PATTERN_MEDIUM_TRIANGLES), 4, gHue) ;
-}
+void Cross() {
+  
+  const long delay = 100; 
+  // fadeToBlackBy(leds, NUM_LEDS, 10 );
+  fill_solid(leds, NUM_LEDS, CRGB(0, 0, 0));
 
-void LargeTriangles () {
-  fadeToBlackBy(leds, NUM_LEDS, 4);
   static unsigned long nextUpdate = 0 ;
-  static uint16_t segmentOffset = 0 ; 
-  PatternRotateThoughSubSections( nextUpdate, segmentOffset, PATTERN_LARGE_TRIANGLES, ARRAY_SIZE(PATTERN_LARGE_TRIANGLES), 9, 500, 1, gHue+ 127 * segmentOffset);   
+  static uint16_t segmentOffset = 0 ;
+  static uint16_t segmentStart = 0 ; 
+
+  for( uint8_t flowerOffset = 0 ; flowerOffset < PATTERNS_FLOWER_COUNT ; flowerOffset++ ) {
+  
+    // Only update the segments on a timer.
+    if (nextUpdate < millis())
+    {
+      nextUpdate = millis() + delay;
+
+      // increase the offset
+      segmentOffset += 1;
+      // Ensure that we don't overflow.
+      segmentStart = (segmentOffset % 3); 
+    }
+
+    leds[ PATTERNS_FLOWER[ (flowerOffset * PATTERNS_FLOWER_PETTLE_COUNT) +  1 + segmentStart ] ] = CHSV(gHue, 200, 255);
+    leds[ PATTERNS_FLOWER[ (flowerOffset * PATTERNS_FLOWER_PETTLE_COUNT) +  4 + segmentStart ] ] = CHSV(gHue, 200, 255);
+    leds[ PATTERNS_FLOWER[ (flowerOffset * PATTERNS_FLOWER_PETTLE_COUNT) +  7 + segmentStart ] ] = CHSV(gHue, 200, 255);
+    leds[ PATTERNS_FLOWER[ (flowerOffset * PATTERNS_FLOWER_PETTLE_COUNT) + 10 + segmentStart ] ] = CHSV(gHue, 200, 255);
+
+  }
 }
-*/
+
 /*
 void Groups()
 {
@@ -338,8 +366,19 @@ void Rings()
 
 // List of patterns to cycle through.  Each is defined as a separate function below.
 typedef void (*SimplePatternList[])();
-// SimplePatternList gPatterns = {Rings, Clock, Triangles, Groups, confetti, rainbow, sinelon, bpm, juggle};
-SimplePatternList gPatterns = {rotatingFlowers, spirialOut};
+SimplePatternList gPatterns = {
+  // Customs Patterns
+  // --------------------------------------------
+  DifferentColorFlowers, 
+  Cross,
+  rotatingFlowers,
+  rotatingPettlesForwards, rotatingPettlesBackwards,
+  spirialOut,
+
+  // Default Patterns
+  // --------------------------------------------
+  rainbow, confetti, sinelon, bpm, juggle
+  };
 
 void nextPattern()
 {
